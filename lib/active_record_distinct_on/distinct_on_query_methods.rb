@@ -1,5 +1,4 @@
 require 'active_record_distinct_on'
-
 module ActiveRecordDistinctOn
   module DistinctOnQueryMethods
     extend ActiveSupport::Concern
@@ -70,15 +69,26 @@ module ActiveRecordDistinctOn
     end
 
     def distinct_on_arel_columns
-      arel_attributes = distinct_on_values.map { |field|
-        if klass.attribute_alias?(field)
-          arel_table[klass.attribute_alias(field).to_sym]
+      arel_attributes = distinct_on_values.map do |field|
+        if field.is_a?(String)
+          field
+        elsif field.is_a?(Hash)
+          assoc = field.keys.first
+          assoc_klass = klass.reflect_on_association(assoc).klass
+          assoc_field = field[assoc].to_sym
+          build_distinct_on_field(assoc_klass, assoc_field)
         else
-          arel_table[field]
+          build_distinct_on_field(klass, field)
         end
-      }
+      end
 
-      arel_columns arel_attributes
+      arel_columns(arel_attributes)
+    end
+
+    def build_distinct_on_field(klass, field)
+      return klass.arel_table[klass.attribute_alias(field).to_sym] if klass.attribute_alias?(field)
+
+      klass.arel_table[field]
     end
   end
 end
