@@ -34,6 +34,22 @@ describe ActiveRecordDistinctOn::DistinctOnQueryMethods do
       end
     end
 
+    context 'with an associations attribute' do
+      let(:attribute_names) { [:id, {dog_to_toys: :created_at}] }
+      let(:arel) { subject.joins(:dog_to_toys).distinct_on(*attribute_names).arel }
+      let(:select_statement) { arel.ast }
+      let(:set_quantifies) { select_statement.cores.map(&:set_quantifier) }
+      let(:set_quantifier_attributes) { set_quantifies.flat_map(&:expr) }
+
+      it 'produces arel with a set_quantifier over the correct attribute_names' do
+        expect(set_quantifier_attributes.first.relation.name).to eq "dogs"
+        expect(set_quantifier_attributes.first.name.to_sym).to eq :id
+
+        expect(set_quantifier_attributes.second.relation.name).to eq "dog_to_toys"
+        expect(set_quantifier_attributes.second.name.to_sym).to eq :created_at
+      end
+    end
+
     context 'when chained' do
       it 'behaves the same as having been called once with all of the arguments' do
         expect(subject.distinct_on(:a).distinct_on(:b, :c).distinct_on_values).to(
